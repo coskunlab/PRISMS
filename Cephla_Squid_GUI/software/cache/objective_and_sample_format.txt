@@ -1,0 +1,1 @@
+{"objective": "20x", "wellplate_format": "glass slide"}
