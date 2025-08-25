@@ -1520,6 +1520,10 @@ class MultiPointWorker(QObject):
                     # Set location list for this sample
                     if 'location_list' in sample_config:
                         self.multiPointController.location_list = sample_config['location_list']
+                    
+                    # Set location IDs for this sample
+                    if 'location_ids' in sample_config:
+                        self.multiPointController.location_ids = sample_config['location_ids']
 
                     # # DEBUGGING: Print the sample configuration
                     # print(f"Sample {sample_idx + 1} configuration: {sample_config}")
@@ -2023,7 +2027,11 @@ class MultiPointWorker(QObject):
         else:
             # use location_list specified by the multipoint controlller
             self.scan_coordinates_mm = self.multiPointController.location_list
-            self.scan_coordinates_name = None
+            # Use location_ids if available, otherwise set to None
+            if hasattr(self.multiPointController, 'location_ids') and self.multiPointController.location_ids is not None:
+                self.scan_coordinates_name = self.multiPointController.location_ids
+            else:
+                self.scan_coordinates_name = None
             self.use_scan_coordinates = True
 
         # execute estimate remaining time and processing script in another terminal
@@ -3796,11 +3804,18 @@ class MultiPointController(QObject):
             # Use location_list from first sample if available
             if sample_list and 'location_list' in sample_list[0]:
                 self.location_list = sample_list[0]['location_list']
+                # Also extract location_ids if available
+                if 'location_ids' in sample_list[0]:
+                    self.location_ids = sample_list[0]['location_ids']
+                else:
+                    self.location_ids = None
             else:
                 self.location_list = None
+                self.location_ids = None
         elif location_list is not None:
             print(location_list)
             self.location_list = location_list
+            self.location_ids = None  # No location_ids available in legacy mode
             # Create single sample from location_list for backwards compatibility
             self.sample_list = [{
                 'location_list': location_list,
@@ -3813,6 +3828,7 @@ class MultiPointController(QObject):
             }]
         else:
             self.location_list = None
+            self.location_ids = None
             self.sample_list = None
 
         print(str(self.Nt) + '_' + str(self.NX) + '_' + str(self.NY) + '_' + str(self.NZ))
