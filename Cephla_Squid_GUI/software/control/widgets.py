@@ -2043,10 +2043,11 @@ class FlexibleMultiPointWidget(QFrame):
         self.multipointController.set_base_path(DEFAULT_SAVING_PATH)
         self.base_path_is_set = True
 
-        # Remove lineEdit_fovName (ID input box) to give more room
-        # self.lineEdit_fovName = QLineEdit() # for naming FOV
-        # self.lineEdit_fovName.setPlaceholderText('Enter FOV Name')
-        # self.lineEdit_fovName.setMaxLength(20)
+        # Coordinate ID editor for direct editing without opening table
+        self.lineEdit_coordinateID = QLineEdit()
+        self.lineEdit_coordinateID.setPlaceholderText('Coordinate ID')
+        self.lineEdit_coordinateID.setMaxLength(20)
+        self.lineEdit_coordinateID.setEnabled(False)  # Disabled until coordinates exist
 
         self.dropdown_location_list = QComboBox()
         self.btn_add = QPushButton('Add')
@@ -2208,10 +2209,10 @@ class FlexibleMultiPointWidget(QFrame):
         grid_line4 = QGridLayout()
         grid_line4.addWidget(QLabel('Location List'),0,0)
         grid_line4.addWidget(self.dropdown_location_list,0,1,1,2)
-        # Remove FOV ID input box to give more room
-        # grid_line4.addWidget(self.lineEdit_fovName,0,3)
-        grid_line4.addWidget(self.btn_clear,0,3)  # Move clear button to position 3
-        grid_line4.addWidget(self.btn_show_table_location_list,0,4)  # Move table button to position 4
+        grid_line4.addWidget(QLabel('ID:'),1,0)
+        grid_line4.addWidget(self.lineEdit_coordinateID,1,1)
+        grid_line4.addWidget(self.btn_clear,1,2)
+        grid_line4.addWidget(self.btn_show_table_location_list,1,3)
 
         grid_line3point5 = QGridLayout()
         grid_line3point5.addWidget(self.btn_add,0,0)
@@ -2399,8 +2400,8 @@ class FlexibleMultiPointWidget(QFrame):
         # do NOT move to point automatically
         # self.dropdown_location_list.currentIndexChanged.connect(self.go_to) 
         self.dropdown_location_list.currentIndexChanged.connect(self.read_fov_name) # update FOV name when coord changed
-        # Remove FOV name text change connection - no longer needed
-        # self.lineEdit_fovName.textChanged.connect(self.write_fov_name)
+        # Coordinate ID editor connection for real-time editing
+        self.lineEdit_coordinateID.textChanged.connect(self.write_coordinate_id)
 
         self.shortcut = QShortcut(QKeySequence(";"), self)
         self.shortcut.activated.connect(self.btn_add.click)
@@ -2685,6 +2686,36 @@ class FlexibleMultiPointWidget(QFrame):
         else:
             self.label_current_sample.setText("No samples defined")
 
+    def validate_coordinate_ids(self, location_ids):
+        """Validate that coordinate IDs are distinct (excluding repeat NaNs)"""
+        import pandas as pd
+        
+        # Convert to list if it's a numpy array
+        if hasattr(location_ids, 'tolist'):
+            ids_list = location_ids.tolist()
+        else:
+            ids_list = list(location_ids)
+        
+        # Filter out NaN values and empty strings for duplicate checking
+        non_nan_ids = []
+        for id_val in ids_list:
+            # Check for various representations of NaN/empty values
+            if pd.isna(id_val) or str(id_val).lower() in ['nan', '', 'none']:
+                continue
+            non_nan_ids.append(str(id_val))
+        
+        # Check for duplicates in non-NaN IDs
+        if len(non_nan_ids) != len(set(non_nan_ids)):
+            # Find which IDs are duplicated
+            id_counts = {}
+            for id_val in non_nan_ids:
+                id_counts[id_val] = id_counts.get(id_val, 0) + 1
+            
+            duplicated_ids = [id_val for id_val, count in id_counts.items() if count > 1]
+            return False, f"Duplicate coordinate IDs found: {', '.join(duplicated_ids)}"
+        
+        return True, ""
+
     def validate_sample(self, sample_config):
         """Validate a single sample configuration"""
         import os
@@ -2708,6 +2739,13 @@ class FlexibleMultiPointWidget(QFrame):
         if not valid_channels:
             errors.append("No channels selected with exposure time > 0")
         
+        # Check coordinate IDs for duplicates
+        location_ids = sample_config.get('location_ids', [])
+        if len(location_ids) > 0:
+            ids_valid, id_error = self.validate_coordinate_ids(location_ids)
+            if not ids_valid:
+                errors.append(id_error)
+        
         return len(errors) == 0, "; ".join(errors)
     
     def validate_all_samples(self):
@@ -2726,10 +2764,24 @@ class FlexibleMultiPointWidget(QFrame):
     def validate_samples_dialog(self):
         """Show validation dialog for all samples"""
         if not self.sample_list:
+            # No samples defined, validate current coordinates
             msg = QMessageBox()
-            msg.setWindowTitle("Validation Result")
-            msg.setText("No samples defined to validate.")
-            msg.setIcon(QMessageBox.Information)
+            msg.setWindowTitle("Coordinate Validation")
+            
+            # Validate current coordinate IDs
+            if len(self.location_ids) > 0:
+                ids_valid, id_error = self.validate_coordinate_ids(self.location_ids)
+                if not ids_valid:
+                    msg.setText("Coordinate validation errors found:")
+                    msg.setDetailedText(id_error)
+                    msg.setIcon(QMessageBox.Warning)
+                else:
+                    msg.setText("All coordinate IDs are valid!")
+                    msg.setIcon(QMessageBox.Information)
+            else:
+                msg.setText("No coordinates defined to validate.")
+                msg.setIcon(QMessageBox.Information)
+            
             msg.exec_()
             return
         
@@ -2877,8 +2929,11 @@ class FlexibleMultiPointWidget(QFrame):
     def setEnabled_all(self,enabled,exclude_btn_startAcquisition=True):
         self.btn_setSavingDir.setEnabled(enabled)
         self.lineEdit_savingDir.setEnabled(enabled)
-        # Remove lineEdit_fovName reference - no longer exists
-        # self.lineEdit_fovName.setEnabled(enabled)
+        # Coordinate ID field is enabled only when locations exist and general enabled is True
+        if enabled and self.location_list.shape[0] > 0:
+            self.lineEdit_coordinateID.setEnabled(enabled)
+        else:
+            self.lineEdit_coordinateID.setEnabled(False)
         # Nx and Ny respect fillBoundary checkbox state
         self.entry_NX.setEnabled(enabled and not self.checkbox_fillBoundary.isChecked())
         self.entry_NY.setEnabled(enabled and not self.checkbox_fillBoundary.isChecked())
@@ -2932,6 +2987,10 @@ class FlexibleMultiPointWidget(QFrame):
             self.table_location_list.setItem(self.table_location_list.rowCount()-1,2, QTableWidgetItem(str(round(1000*z,1))))
             self.table_location_list.setItem(self.table_location_list.rowCount()-1,3, QTableWidgetItem(name))
             self.navigationViewer.register_fov_to_image(x,y)
+            
+            # Enable and update the coordinate ID field
+            self.lineEdit_coordinateID.setEnabled(True)
+            self.lineEdit_coordinateID.setText(name)
         else:
             print("Duplicate values not added based on x and y.")
             #to-do: update z coordinate
@@ -2939,6 +2998,8 @@ class FlexibleMultiPointWidget(QFrame):
     # update FOV name
     def read_fov_name(self):
         if self.location_list.shape[0] == 0:
+            self.lineEdit_coordinateID.clear()
+            self.lineEdit_coordinateID.setEnabled(False)
             return
         index = self.dropdown_location_list.currentIndex()
         location_str = 'x: ' + str(round(self.location_list[index,0],3)) + \
@@ -2946,8 +3007,47 @@ class FlexibleMultiPointWidget(QFrame):
                 ' mm, z: ' + str(1000*round(self.location_list[index,2],3)) + ' um' + \
                     ', ID: ' + self.location_ids[index]
         self.dropdown_location_list.setItemText(index, location_str)
-        # Remove FOV Name text field update - no longer exists
-        # self.lineEdit_fovName.setText(self.location_ids[index])
+        # Update the coordinate ID field with the current coordinate's ID
+        self.lineEdit_coordinateID.setText(self.location_ids[index])
+        self.lineEdit_coordinateID.setEnabled(True)
+        # Clear any warning styling when switching coordinates
+        self.lineEdit_coordinateID.setStyleSheet("")
+
+    def write_coordinate_id(self):
+        """Update coordinate ID when user edits the field"""
+        if self.location_list.shape[0] == 0:
+            return
+        index = self.dropdown_location_list.currentIndex()
+        if index < 0 or index >= len(self.location_ids):
+            return
+        
+        # Update the ID in the location_ids array
+        new_id = self.lineEdit_coordinateID.text()
+        self.location_ids[index] = new_id
+        
+        # Check for duplicate IDs and warn user
+        ids_valid, id_error = self.validate_coordinate_ids(self.location_ids)
+        if not ids_valid:
+            # Show warning but don't prevent the change
+            print(f"Warning: {id_error}")
+            # You could also show a tooltip or change the background color here
+            self.lineEdit_coordinateID.setStyleSheet("QLineEdit { background-color: #ffcccc; }")
+        else:
+            # Clear any previous warning styling
+            self.lineEdit_coordinateID.setStyleSheet("")
+        
+        # Update the dropdown display
+        location_str = 'x: ' + str(round(self.location_list[index,0],3)) + \
+            ' mm, y: ' + str(round(self.location_list[index,1],3)) + \
+                ' mm, z: ' + str(1000*round(self.location_list[index,2],3)) + ' um' + \
+                    ', ID: ' + self.location_ids[index]
+        self.dropdown_location_list.setItemText(index, location_str)
+        
+        # Update the table if it exists
+        if self.table_location_list.rowCount() > index:
+            self.table_location_list.setItem(index, 3, QTableWidgetItem(new_id))
+        
+        print(f"Updated coordinate {index} ID to: {new_id}")
 
     def write_fov_name(self):
         # Method no longer needed since FOV Name input box removed
@@ -3050,8 +3150,9 @@ class FlexibleMultiPointWidget(QFrame):
         self.dropdown_location_list.clear()
         self.navigationViewer.clear_slide()
         self.table_location_list.setRowCount(0)
-        # Remove FOV Name text field clear - no longer exists
-        # self.lineEdit_fovName.clear()
+        # Clear and disable coordinate ID field
+        self.lineEdit_coordinateID.clear()
+        self.lineEdit_coordinateID.setEnabled(False)
 
     def clear_only_location_list(self):
         self.location_list = np.empty((0,3),dtype=float)
@@ -3059,8 +3160,9 @@ class FlexibleMultiPointWidget(QFrame):
         self.location_ids = []
         self.dropdown_location_list.clear()
         self.table_location_list.setRowCount(0)
-        # Remove lineEdit_fovName.clear() - no longer exists
-        # self.lineEdit_fovName.clear()
+        # Clear and disable coordinate ID field
+        self.lineEdit_coordinateID.clear()
+        self.lineEdit_coordinateID.setEnabled(False)
 
     # def clear_only_location_list(self):
     #     self.location_list = np.empty((0,3),dtype=float)
@@ -3228,8 +3330,10 @@ class FlexibleMultiPointWidget(QFrame):
 
     def cell_was_clicked(self,row,column):
         self.dropdown_location_list.setCurrentIndex(row)
-        # Remove lineEdit_fovName.setText - no longer exists
-        # self.lineEdit_fovName.setText(self.location_ids[row])
+        # Update coordinate ID field when table cell is clicked
+        if row < len(self.location_ids):
+            self.lineEdit_coordinateID.setText(self.location_ids[row])
+            self.lineEdit_coordinateID.setEnabled(True)
 
     def cell_was_changed(self,row,column):
         # print('cell was changed')
@@ -3245,8 +3349,9 @@ class FlexibleMultiPointWidget(QFrame):
             z = float(val_edit)/1000
             self.location_list[row,column] = z
         else: # ID
-            # self.location_ids[row] = 
-            pass
+            # Update the location ID with the new value
+            self.location_ids[row] = val_edit
+            print(f"Updated location {row} ID to: {val_edit}")
 
         self.navigationViewer.register_fov_to_image(self.location_list[row,0], self.location_list[row,1])
         location_str = 'x: ' + str(round(self.location_list[row,0],3)) + \
