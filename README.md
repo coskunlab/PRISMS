@@ -1,3 +1,5 @@
+# Python based Robotic Imaging and Staining for modular Spatial Omics (PRISMS)
+
 ## Project Overview
 
 This is a spatial transcriptomics and single-cell molecular imaging analysis repository supporting the manuscript "Modular, open-sourced multiplexing for democratizing spatial omics". The codebase processes single-cell microscopy data and generates publication-quality figures for multiple manuscripts.
