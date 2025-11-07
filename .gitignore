@@ -2,3 +2,4 @@ data/*
 !data/.gitkeep
 data_compress/
 notebooks/wandb
+data.tar
