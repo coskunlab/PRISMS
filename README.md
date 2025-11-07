@@ -4,6 +4,10 @@
 
 This is a spatial transcriptomics and single-cell molecular imaging analysis repository supporting the manuscript "Modular, open-sourced multiplexing for democratizing spatial omics". The codebase processes single-cell microscopy data and generates publication-quality figures for multiple manuscripts.
 
+## Data
+Example data: https://figshare.com/articles/dataset/Modular_Open-Sourced_Multiplexing_for_Democratizing_Spatial_Multi-Omics/28646996
+The data.zip file should be unzipped and placed in the data folder of this repo to run.
+
 ## Environment Setup
 
 The repository requires Conda for environment management. Create the environment with:
@@ -118,4 +122,3 @@ Code is not strictly formatted. New code should follow standard Python conventio
 
 Zhang, N. et al. Modular, open-sourced multiplexing for democratizing spatial multi-omics. Lab Chip 25, 5379–5392 (2025).
 
-Example data: https://figshare.com/articles/dataset/Modular_Open-Sourced_Multiplexing_for_Democratizing_Spatial_Multi-Omics/28646996
