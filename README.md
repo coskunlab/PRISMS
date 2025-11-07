@@ -1,117 +1,119 @@
-# GSR-PPI
+## Project Overview
 
-This repository contains code for the manuscript "Graph-based spatial proximity of super-resolved protein-protein interactions predict cancer drug responses in single cells". Codes are run under the specified Anaconda environment.
+This is a spatial transcriptomics and single-cell molecular imaging analysis repository supporting the manuscript "Modular, open-sourced multiplexing for democratizing spatial omics". The codebase processes single-cell microscopy data and generates publication-quality figures for multiple manuscripts.
 
-To set up environments, run the following command: `conda env create -f environment.yml`
+## Environment Setup
 
-Example data can be found at: https://figshare.com/projects/Signaling_Project_PLA/195958 
-
-
-# Citation
-
-Please cite: Zhang, N. et al. Graph-Based Spatial Proximity of Super-Resolved Protein–Protein Interactions Predicts Cancer Drug Responses in Single Cells. Cel. Mol. Bioeng. https://doi.org/10.1007/s12195-024-00822-1 (2024) doi:10.1007/s12195-024-00822-1.
-
-## Repository Overview
-
-This repository contains analysis scripts for spatial transcriptomics and single-cell molecular imaging data. The primary purpose is to process single-cell data from microscopy experiments, perform statistical analysis, and generate publication-quality figures.
-
-### Key Technologies
-
-*   **Data Analysis:** `pandas`, `numpy`, `scikit-learn`, `scipy`
-*   **Visualization:** `matplotlib`, `seaborn`, `napari`
-*   **Image Processing:** `scikit-image`, `opencv-python`, `cellpose`
-*   **Microscopy Data:** `nd2reader`, `nd2`, `tifffile`
-*   **Spatial Analysis:** Graph Neural Networks (`torch-geometric`), `networkx`, `spatial-statistics`
-*   **Parallel Processing:** `joblib`, `dask`
-*   **Single-Cell Analysis:** `scanpy`, `anndata`
-*   **Custom Packages:**
-    *   `pixelator`: A package from Pixelgen Technologies for pixel-level spatial omics.
-    *   `py_sphere`: A package for spherical geometry utilities.
-
-### Directory Structure
-
-```
-.
-├── data/                          # Experimental datasets (PKL files, Excel metadata)
-├── figures/                       # Generated PNG outputs from figure scripts
-├── notebooks/                     # Analysis scripts and package modules
-│   ├── Fig_4_confocal.py         # Confocal microscopy RNA expression analysis
-│   ├── Fig_4_widefield.py        # Widefield microscopy RNA expression analysis
-│   ├── Fig_5.py                  # RNA expression analysis
-│   ├── Fig_6a.py                 # Pairwise colocalization analysis
-│   ├── Fig_S1.py                 # Thermal module temperature validation
-│   ├── Fig_S4.py                 # Autofocus gradient analysis
-│   ├── Fig_S5.py                 # Protein expression analysis
-│   ├── Fig_S6.py                 # Per-cell Pearson correlation heatmap (computationally intensive)
-│   ├── GNN/                      # Graph Neural Network module for spatial transcriptomics
-│   ├── pixelator/                # Pixelgen Technologies spatial omics package
-│   └── py_sphere/                # Spherical geometry utilities
-└── environment.yml                # Conda environment definition
-```
-
-## Building and Running
-
-### Environment Setup
-
-To set up the Anaconda environment, run the following command:
+The repository requires Conda for environment management. Create the environment with:
 
 ```bash
 conda env create -f environment.yml
 ```
 
-### Running Figure Generation Scripts
+This creates an environment with extensive scientific Python packages including data analysis (pandas, numpy, scikit-learn), visualization (matplotlib, seaborn, napari), image processing (scikit-image, opencv, cellpose), and deep learning (PyTorch, torch-geometric).
 
-All figure generation scripts are located in the `notebooks/` directory and output to `figures/`. To run a specific script:
+## Running Figure Generation Scripts
 
+All figure scripts are located in `notebooks/` and output PNG files to `figures/`.
+
+**Run a single figure:**
 ```bash
-python notebooks/Fig_4_confocal.py
+python notebooks/Fig_5.py
 ```
 
-To regenerate all figures:
-
+**Run all figures:**
 ```bash
 for script in notebooks/Fig_*.py; do python "$script"; done
 ```
 
-**Performance Notes**:
+**Performance expectations:**
+- Most scripts: 30 seconds to 3 minutes
+- `Fig_S6.py` (computationally intensive): 30+ minutes
+- Scripts use `joblib` with threading backend for parallelization
 
-*   Most scripts complete in 30 seconds to 3 minutes.
-*   `Fig_S6.py` is computationally intensive and can take 30+ minutes.
-*   Scripts use `joblib` with a threading backend for parallelization.
+## Codebase Structure
 
-## Development Conventions
+### Core Data Analysis Modules
 
-### Code Style
+The `notebooks/` directory contains:
 
-*   The codebase is not strictly formatted, but new code should follow standard Python conventions (PEP 8).
-*   Use meaningful variable names and add comments to explain complex logic.
+- **Figure Scripts** (`Fig_*.py`): Standalone analysis scripts that load pickle files, perform statistical analysis, generate visualizations, and save PNGs
+- **GNN Module** (`notebooks/GNN/`): Graph Neural Network implementation for spatial transcriptomics analysis (data.py, model.py, train.py)
+- **Custom Packages**:
+  - `pixelator/`: Spatial omics pixel-level analysis package (Pixelgen Technologies)
+  - `py_sphere/`: Spherical geometry utilities with Voronoi and circumcircle calculations
 
-### Data Processing Pipeline
+### Supporting Code
 
-The typical workflow for analysis scripts is as follows:
+- **Nikon_GUI/** (`03_run_PRISMS.py`): Microscopy automation script for Nikon hardware
+- **Cephla_Squid_GUI/**: Related microscopy GUI software
 
-1.  Load `.pkl` files (pickled DataFrames with single-molecule spatial data).
-2.  Aggregate data per-cell using `groupby` operations.
-3.  Apply statistical analysis (correlations, colocalization, etc.).
-4.  Generate visualizations (boxplots, heatmaps, scatter plots).
-5.  Save figures as PNG to the `figures/` directory.
+### Data Directory
 
-### Path Resolution
+The `data/` directory contains experiment-specific subdirectories with:
+- `.pkl` files (pickled pandas DataFrames with single-molecule spatial coordinates)
+- Excel metadata files
+- Organized by experiment name and date
 
-All scripts use relative paths from the script location:
+## Key Development Patterns
 
-```python
-from pathlib import Path
+### Figure Script Architecture
 
-SCRIPT_DIR = Path(__file__).parent
-pklPath = SCRIPT_DIR / ".." / "data" / "experiment_name" / "subfolder"
-screenshotSavePath = SCRIPT_DIR / ".." / "figures"
-```
+All figure scripts follow a consistent pattern:
 
-### Testing
+1. **Relative Path Resolution**: Use `pathlib.Path(__file__).parent` to resolve data paths relative to script location
+   ```python
+   SCRIPT_DIR = Path(__file__).parent
+   pklPath = SCRIPT_DIR / ".." / "data" / "experiment_name" / "subfolder"
+   screenshotSavePath = SCRIPT_DIR / ".." / "figures"
+   ```
 
-There is no automated test suite in this repository. To verify changes:
+2. **Data Pipeline**:
+   - Load `.pkl` files (pickled DataFrames with molecule-level spatial data)
+   - Aggregate per-cell using `groupby` operations
+   - Apply statistical analysis (correlations, colocalization)
+   - Generate matplotlib/seaborn visualizations
+   - Save PNG outputs with `saveFigure()` utility function
 
-1.  Run all figure generation scripts.
-2.  Check that PNG outputs are created in the `figures/` directory.
-3.  Visually inspect the generated figures for expected patterns.
+3. **Parallel Processing**: Use `joblib.Parallel` with threading backend for processing multiple PKL files
+   ```python
+   dfCell = Parallel(n_jobs=-1, prefer='threads', verbose=10)(
+       delayed(processingFunction)(fileName) for fileName in pklFiles
+   )
+   ```
+
+### Common Data Column Names
+
+Scripts use consistent column naming across figures:
+- Spatial: `Z`, `Y`, `X`
+- Cell metadata: `CellLabel`, `MaskNucLabel`, `MaskCytoLabel`
+- Experiment metadata: `TumorStage`, `TumorType`, `CellRegion`, `Cycle`, `FOV`
+- Marker expressions: `[MarkerName] Protein`, `[MarkerName] RNA Dots`
+
+### Image Processing Dependencies
+
+Figure scripts leverage:
+- `scikit-image` (segmentation, morphological operations)
+- `opencv-python` (image operations)
+- `cellpose` (cell segmentation)
+- `nd2`/`nd2reader` (Nikon microscopy file reading)
+- `napari` (interactive visualization, not saved to figures)
+- `torch` (GPU acceleration for cellpose)
+
+## Testing Verification
+
+There is no automated test suite. To verify changes:
+
+1. Run all affected figure generation scripts
+2. Inspect PNG outputs in `figures/` directory
+3. Visually compare generated figures with expected patterns
+
+## Code Style
+
+Code is not strictly formatted. New code should follow standard Python conventions (PEP 8) with meaningful variable names and comments explaining complex logic.
+
+## Citation
+
+Zhang, N. et al. Modular, open-sourced multiplexing for democratizing spatial multi-omics. Lab Chip 25, 5379–5392 (2025).
+
+Example data: https://figshare.com/articles/dataset/Modular_Open-Sourced_Multiplexing_for_Democratizing_Spatial_Multi-Omics/28646996
