@@ -337,7 +337,7 @@ def detectSoftwareFreeze(start, end, row, ii, jj, basePath, subject, startBody):
 # send email alert to user
 def sendEmailAlert(subject, startBody, basePath):
     # send email alert
-    sender = 'nzhang326@gatech.edu'
+    sender = 'your-email-here'
     recipient = sender
     subject = subject
     email = EmailMessage()
@@ -357,7 +357,7 @@ def sendEmailAlert(subject, startBody, basePath):
     with smtplib.SMTP(smtp_server, port) as server:
         try:
             server.starttls()  # Secure the connection
-            server.login(sender, "Outrank-Undoing-Satin") # password
+            server.login(sender, "your-password-here") # password
             server.send_message(email)
         except Exception as e:
             print('Failed to send email alert:', e)
